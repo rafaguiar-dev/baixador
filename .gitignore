@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+build/
+dist/
+# notas internas do laboratório (não vão pro repo público)
+INTEGRACAO.md

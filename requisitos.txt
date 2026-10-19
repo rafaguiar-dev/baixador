@@ -1,0 +1,3 @@
+# Baixador — dependências (Python 3.11). Instalar:  uv pip install -r requisitos.txt
+yt-dlp[default]>=2026.8.19   # extrator (YouTube/Instagram/TikTok/Facebook) + yt-dlp-ejs (desafio JS do YouTube)
+pywebview==6.2.1             # janela (WebView2)

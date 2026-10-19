@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Baixador</title>
+<style>
+  /* Tema "Mica cobalto": superfície fria e calma no estilo Windows 11 (Fluent/Mica), pra parecer app do sistema e
+     passar confiança a quem é leigo. A única ousadia é a cor da rede: quando o link é reconhecido, a caixa de link e a
+     faixa de logos assumem a cor do YouTube/Instagram/TikTok/Facebook. Todo o resto fica quieto.
+     Paleta clara: fundo #EEF1F6, superfície #FFFFFF, tinta #161A22, cobalto #2457D6, pronto #17804A, erro #B42A2F.
+     Escura: fundo #191B20, superfície #23262D, tinta #EDEFF3, cobalto #85A8FF. Fonte: Segoe UI Variable (do sistema). */
+  :root {
+    --fundo: #EEF1F6; --fundo-topo: #E4EAF5; --sup: #FFFFFF; --sup2: #F5F7FA; --sup3: #EBEFF5;
+    --linha: #D8DDE6; --linha-forte: #C3CAD6;
+    --tinta: #161A22; --suave: #535B6A; --fraco: #7E8696;
+    --acento: #2457D6; --acento-hover: #1D4AC0; --acento-txt: #FFFFFF; --acento-suave: #E5ECFC;
+    --ok: #17804A; --ok-suave: #E2F3E9; --erro: #B42A2F; --erro-suave: #FCE8E9; --alerta: #7A5200; --alerta-suave: #FFF2D2;
+    --c-youtube: #FF0000; --c-instagram: #D62976; --c-tiktok: #00A9A4; --c-facebook: #0866FF;
+    --sombra: 0 1px 2px rgba(22, 26, 34, .06), 0 4px 16px rgba(22, 26, 34, .05);
+    --rede: var(--acento);
+    --fonte: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --fonte-titulo: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fundo: #191B20; --fundo-topo: #1E2230; --sup: #23262D; --sup2: #2A2E36; --sup3: #31353F;
+      --linha: #363B46; --linha-forte: #474D5A;
+      --tinta: #EDEFF3; --suave: #A9B0BD; --fraco: #818998;
+      --acento: #85A8FF; --acento-hover: #9DB9FF; --acento-txt: #0C1430; --acento-suave: #233154;
+      --ok: #5BD08E; --ok-suave: #1B3326; --erro: #FF9090; --erro-suave: #3B2226; --alerta: #F3C565; --alerta-suave: #39301B;
+      --c-youtube: #FF4545; --c-instagram: #F0569A; --c-tiktok: #25F4EE; --c-facebook: #4D8EFF;
+      --sombra: 0 1px 2px rgba(0, 0, 0, .25), 0 6px 20px rgba(0, 0, 0, .18);
+    }
+  }
+  body[data-rede="youtube"] { --rede: var(--c-youtube); }
+  body[data-rede="instagram"] { --rede: var(--c-instagram); }
+  body[data-rede="tiktok"] { --rede: var(--c-tiktok); }
+  body[data-rede="facebook"] { --rede: var(--c-facebook); }
+  body[data-rede="invalido"] { --rede: var(--alerta); }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--fundo) linear-gradient(180deg, var(--fundo-topo), var(--fundo) 320px) no-repeat;
+         color: var(--tinta); font: 14px/1.5 var(--fonte); overflow-x: hidden;
+         display: flex; flex-direction: column; min-height: 100vh; }
+  .tela { width: 100%; max-width: 880px; margin: 0 auto; padding: 30px 28px 24px; flex: 1; }
+  .logo { width: 22px; height: 22px; flex: none; display: block; }
+  svg.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
+           stroke-linecap: round; stroke-linejoin: round; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- botões ---------- */
+  button { font: inherit; font-weight: 600; cursor: pointer; border: 1px solid var(--linha); border-radius: 8px;
+           padding: 7px 14px; color: var(--tinta); background: var(--sup); display: inline-flex; align-items: center;
+           gap: 7px; white-space: nowrap; transition: background .12s, border-color .12s, color .12s; }
+  button:hover { background: var(--sup2); border-color: var(--linha-forte); }
+  button:active { background: var(--sup3); }
+  button.prim { background: var(--acento); border-color: var(--acento); color: var(--acento-txt); }
+  button.prim:hover { background: var(--acento-hover); border-color: var(--acento-hover); }
+  button.leve { background: transparent; border-color: transparent; color: var(--suave); }
+  button.leve:hover { background: var(--sup3); color: var(--tinta); }
+  button:disabled { opacity: .55; cursor: default; }
+  :focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  button:focus-visible { outline-offset: 2px; }
+
+  /* ---------- cabeçalho ---------- */
+  .cab { display: flex; align-items: center; gap: 14px; }
+  .marca { width: 40px; height: 40px; border-radius: 11px; background: var(--acento); color: var(--acento-txt);
+           display: grid; place-items: center; flex: none; box-shadow: var(--sombra); }
+  .marca svg { width: 22px; height: 22px; stroke-width: 2.2; }
+  h1 { font: 600 26px/1.15 var(--fonte-titulo); margin: 0; letter-spacing: -.2px; }
+  .sub { color: var(--suave); margin: 2px 0 0; font-size: 14.5px; }
+
+  /* faixa de redes aceitas */
+  .redes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 22px 0 12px; }
+  .redes .rot { color: var(--suave); font-size: 13px; margin-right: 2px; }
+  .rd { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 7px; border-radius: 999px;
+        background: var(--sup); border: 1px solid var(--linha); font-weight: 600; font-size: 13px;
+        transition: opacity .2s, filter .2s, border-color .2s, box-shadow .2s, transform .2s; }
+  .redes.tem-rede .rd { opacity: .38; filter: grayscale(1); }
+  .redes.tem-rede .rd.on { opacity: 1; filter: none; border-color: var(--rede);
+                           box-shadow: 0 0 0 3px color-mix(in srgb, var(--rede) 22%, transparent); transform: translateY(-1px); }
+
+  /* caixa do link */
+  .caixa { display: flex; gap: 8px; align-items: center; background: var(--sup); border: 1.5px solid var(--linha-forte);
+           border-radius: 14px; padding: 7px 7px 7px 8px; box-shadow: var(--sombra); transition: border-color .15s, box-shadow .15s; }
+  .caixa:focus-within { border-color: var(--acento); box-shadow: var(--sombra), 0 0 0 3px color-mix(in srgb, var(--acento) 20%, transparent); }
+  body[data-rede] .caixa { border-color: var(--rede); box-shadow: var(--sombra), 0 0 0 3px color-mix(in srgb, var(--rede) 18%, transparent); }
+  .selo { flex: none; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600;
+          height: 38px; padding: 0 12px 0 9px; border-radius: 9px; background: var(--sup3); color: var(--suave); }
+  .selo .logo { width: 20px; height: 20px; }
+  .selo.youtube, .selo.instagram, .selo.tiktok, .selo.facebook { background: color-mix(in srgb, var(--rede) 12%, var(--sup)); color: var(--tinta); }
+  .selo.invalido { background: var(--alerta-suave); color: var(--alerta); }
+  #link { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--tinta);
+          font: 15.5px var(--fonte); padding: 10px 4px; }
+  #link::placeholder { color: var(--fraco); }
+  .caixa button { height: 40px; padding: 0 16px; }
+  .caixa button.prim { padding: 0 20px; }
+
+  /* aviso */
+  .aviso { margin-top: 14px; padding: 11px 14px; border-radius: 10px; display: none; gap: 10px; align-items: flex-start;
+           background: var(--erro-suave); color: var(--erro); font-weight: 500; }
+  .aviso.info { background: var(--alerta-suave); color: var(--alerta); }
+  .aviso svg { margin-top: 1px; }
+  .aviso.vis { display: flex; }
+
+  /* ---------- palco: vazio / carregando / resultado ---------- */
+  .palco { margin-top: 18px; }
+  .convite { border: 1.5px dashed var(--linha-forte); border-radius: 14px; padding: 20px 22px; color: var(--suave);
+             display: flex; gap: 22px; align-items: center; }
+  .convite .grande { width: 48px; height: 48px; border-radius: 12px; background: var(--acento-suave); color: var(--acento);
+                     display: grid; place-items: center; flex: none; }
+  .convite .grande svg { width: 24px; height: 24px; }
+  .convite h2 { color: var(--tinta); font: 600 16px/1.3 var(--fonte-titulo); margin: 0 0 6px; }
+  .convite ol { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+  .convite kbd { font: 600 12px var(--fonte); background: var(--sup); border: 1px solid var(--linha); border-bottom-width: 2px;
+                 border-radius: 5px; padding: 0 5px; color: var(--tinta); }
+
+  .cartao { background: var(--sup); border: 1px solid var(--linha); border-radius: 16px; box-shadow: var(--sombra);
+            padding: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; }
+  .moldura { width: 256px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; position: relative;
+             background: var(--sup3); align-self: start; }
+  .moldura.em-pe { width: 156px; aspect-ratio: 9 / 16; }
+  .moldura img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .moldura .dur { position: absolute; right: 7px; bottom: 7px; background: rgba(0, 0, 0, .78); color: #fff; font-size: 12px;
+                  font-weight: 600; padding: 1px 7px; border-radius: 5px; font-variant-numeric: tabular-nums; }
+  .moldura .sem { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fraco); }
+  .moldura .sem svg { width: 32px; height: 32px; }
+  .info { min-width: 0; }
+  .info h2 { font: 600 17px/1.35 var(--fonte-titulo); margin: 0 0 6px; overflow: hidden; display: -webkit-box;
+             -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--suave); font-size: 13px; align-items: center; }
+  .meta span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .meta .logo { width: 16px; height: 16px; }
+  .meta .autor { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+  .opcoes { margin-top: 14px; display: grid; gap: 6px; }
+  .op { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+        padding: 8px 8px 8px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--sup); }
+  .op .ico { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--sup3); color: var(--suave); }
+  .op .nome { font-weight: 600; min-width: 0; display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; }
+  .op .nome small { color: var(--suave); font-weight: 400; font-size: 12.5px; }
+  .op .tam { color: var(--suave); font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
+  .op button { padding: 6px 14px; }
+  .op.top { border-color: color-mix(in srgb, var(--acento) 45%, var(--linha)); background: var(--acento-suave); padding-top: 11px; padding-bottom: 11px; }
+  .op.top .ico { background: var(--acento); color: var(--acento-txt); }
+  .op.top .nome { font-size: 15px; }
+  .op .tag { font-size: 11.5px; font-weight: 600; color: var(--acento); background: var(--sup); border-radius: 999px; padding: 1px 8px;
+             border: 1px solid color-mix(in srgb, var(--acento) 35%, transparent); }
+  .op.audio { margin-top: 6px; border-style: dashed; }
+  .op.audio .ico { background: color-mix(in srgb, #8B5CF6 16%, var(--sup)); color: #8B5CF6; }
+  @media (prefers-color-scheme: dark) { .op.audio .ico { color: #B79CFF; } }
+  .op button.feito { color: var(--ok); border-color: var(--ok); background: var(--ok-suave); }
+
+  /* skeleton */
+  .esq { pointer-events: none; }
+  .esq .bloco { background: var(--sup3); border-radius: 8px; position: relative; overflow: hidden; }
+  .esq .bloco::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+                       background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--sup) 70%, transparent), transparent);
+                       animation: brilho 1.3s ease-in-out infinite; }
+  @keyframes brilho { to { transform: translateX(100%); } }
+  .esq .l { height: 14px; margin-bottom: 10px; }
+  .esq .op-f { height: 46px; margin-top: 8px; border-radius: 10px; }
+  .lendo { display: flex; align-items: center; gap: 8px; color: var(--suave); font-size: 13px; margin: 2px 0 12px; }
+
+  /* ---------- downloads ---------- */
+  .secao { margin-top: 30px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .secao h2 { font: 600 16px/1.3 var(--fonte-titulo); margin: 0; }
+  .lista { margin-top: 10px; display: grid; gap: 8px; }
+  .lista-vazia { color: var(--suave); padding: 16px; border-radius: 12px; background: color-mix(in srgb, var(--sup) 55%, transparent);
+                 border: 1px solid var(--linha); font-size: 13.5px; }
+  .dl { background: var(--sup); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px;
+        display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+  .dl > .logo { width: 28px; height: 28px; grid-row: 1 / span 3; align-self: start; margin-top: 1px; }
+  .dl .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dl .q { color: var(--suave); font-size: 12.5px; }
+  .dl .acao { grid-column: 3; grid-row: 1 / span 2; }
+  .dl .acao button { padding: 6px 12px; font-size: 13px; }
+  .dl .st { grid-column: 2 / span 2; display: flex; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap;
+            font-size: 12.5px; color: var(--suave); }
+  .dl .st .fase { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--tinta); }
+  .dl .st .nums { display: inline-flex; gap: 14px; font-variant-numeric: tabular-nums; }
+  .dl .st .nums b { color: var(--tinta); font-weight: 600; }
+  .barra { grid-column: 2 / span 2; height: 6px; background: var(--sup3); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  .barra > div { height: 100%; width: 0; background: var(--acento); border-radius: 6px; transition: width .4s ease; }
+  .barra.indet > div { width: 32% !important; animation: indet 1.2s ease-in-out infinite; }
+  @keyframes indet { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+  .dl.juntando .barra > div { background: #8B5CF6; }
+  .dl.pronto { border-color: color-mix(in srgb, var(--ok) 40%, var(--linha)); background: color-mix(in srgb, var(--ok-suave) 60%, var(--sup)); }
+  .dl.pronto .st .fase { color: var(--ok); }
+  .dl.erro { border-color: color-mix(in srgb, var(--erro) 40%, var(--linha)); }
+  .dl.erro .st .fase { color: var(--erro); }
+  .dl.erro .st .msg { color: var(--erro); font-weight: 500; flex-basis: 100%; }
+  .dl.pronto .barra, .dl.erro .barra { display: none; }
+  .dl .st svg.ic { width: 16px; height: 16px; }
+
+  /* barra de baixo: pasta */
+  .rodape { position: sticky; bottom: 0; border-top: 1px solid var(--linha);
+            background: color-mix(in srgb, var(--sup) 88%, transparent); backdrop-filter: blur(12px); }
+  .rodape .dentro { max-width: 880px; margin: 0 auto; padding: 10px 28px; display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--suave); }
+  .rodape .dentro > svg { color: var(--fraco); }
+  .rodape .caminho { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: baseline; white-space: nowrap; }
+  .rodape code { color: var(--tinta); font: 13px var(--fonte); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; direction: rtl; text-align: left; }
+  .rodape button { padding: 5px 11px; font-size: 13px; }
+
+  .giro { width: 14px; height: 14px; border: 2px solid var(--linha-forte); border-top-color: var(--acento); border-radius: 50%;
+          animation: g .8s linear infinite; flex: none; }
+  @keyframes g { to { transform: rotate(360deg); } }
+
+  @media (max-width: 760px) {
+    .tela { padding: 22px 18px 18px; }
+    .rodape .dentro { padding: 9px 18px; }
+    .moldura { width: 200px; }
+    .moldura.em-pe { width: 128px; }
+    .cartao { gap: 16px; padding: 14px; }
+  }
+  @media (max-width: 560px) {
+    .cartao { grid-template-columns: 1fr; }
+    .caixa { flex-wrap: wrap; }
+    #link { flex-basis: 60%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; transition: none !important; }
+    .esq .bloco::after { display: none; }
+  }
+
+  /* ---------- atualização ---------- */
+  .atual { margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: var(--acento-suave);
+           border: 1px solid color-mix(in srgb, var(--acento) 35%, transparent); display: grid; gap: 10px; }
+  .atual .l1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .atual .txt { flex: 1; min-width: 220px; }
+  .atual strong { display: block; }
+  .atual small { color: var(--suave); }
+  .atual .bts { display: flex; gap: 8px; }
+  .atual details { color: var(--suave); font-size: 13px; }
+  .atual details summary { cursor: pointer; }
+  .atual pre { white-space: pre-wrap; font: inherit; margin: 6px 0 0; max-height: 140px; overflow: auto; }
+  .atual .trilho { height: 6px; border-radius: 6px; background: var(--sup3); overflow: hidden; }
+  .atual .trilho > div { height: 100%; width: 0; background: var(--acento); transition: width .3s; }
+  .atual.erro { background: var(--erro-suave); border-color: color-mix(in srgb, var(--erro) 35%, transparent); }
+  .versao { color: var(--fraco); font-size: 12px; font-weight: 400; margin-left: 8px; }
+</style>
+</head>
+<body>
+<!-- logos das redes (desenhos de marca, só pra indicar compatibilidade) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="ig-grad" cx="0.28" cy="1.08" r="1.45">
+      <stop offset="0" stop-color="#FDF497"/><stop offset=".08" stop-color="#FDF497"/>
+      <stop offset=".45" stop-color="#FD5949"/><stop offset=".62" stop-color="#D6249F"/><stop offset=".92" stop-color="#285AEB"/>
+    </radialGradient>
+    <clipPath id="fb-clip"><circle cx="12" cy="12" r="12"/></clipPath>
+    <path id="tt-nota" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+  </defs>
+  <symbol id="lg-youtube" viewBox="0 0 24 24">
+    <rect x="0.5" y="4" width="23" height="16" rx="4.6" fill="#FF0000"/>
+    <path d="M9.6 8.4v7.2l6.2-3.6z" fill="#fff"/>
+  </symbol>
+  <symbol id="lg-instagram" viewBox="0 0 24 24">
+    <rect width="24" height="24" rx="6.6" fill="url(#ig-grad)"/>
+    <rect x="4.9" y="4.9" width="14.2" height="14.2" rx="4.3" fill="none" stroke="#fff" stroke-width="1.9"/>
+    <circle cx="12" cy="12" r="3.35" fill="none" stroke="#fff" stroke-width="1.9"/>
+    <circle cx="16.45" cy="7.55" r="1.1" fill="#fff"/>
+  </symbol>
+  <symbol id="lg-tiktok" viewBox="0 0 24 24">
+    <rect width="24" height="24" rx="6" fill="#000"/>
+    <g transform="translate(5.6 4.6) scale(.56)">
+      <use href="#tt-nota" fill="#25F4EE" transform="translate(-1.1 -1.1)"/>
+      <use href="#tt-nota" fill="#FE2C55" transform="translate(1.1 1.1)"/>
+      <use href="#tt-nota" fill="#fff"/>
+    </g>
+  </symbol>
+  <symbol id="lg-facebook" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="12" fill="#0866FF"/>
+    <path clip-path="url(#fb-clip)" fill="#fff" d="M9.101 24.5v-8.789H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246V24.5z"/>
+  </symbol>
+  <symbol id="lg-link" viewBox="0 0 24 24">
+    <path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1M14 10a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 20.07l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="lg-invalido" viewBox="0 0 24 24">
+    <path d="M12 3 2 20h20L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M12 10v4.5M12 17.3v.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<main class="tela">
+  <header class="cab">
+    <div class="marca" aria-hidden="true">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>
+    </div>
+    <div>
+      <h1>Baixador<span class="versao" id="versao"></span></h1>
+      <p class="sub">Cole o link de um vídeo e escolha a qualidade pra salvar no computador.</p>
+    </div>
+  </header>
+
+  <div class="atual" id="atual" role="status" hidden>
+    <div class="l1">
+      <div class="txt"><strong id="atualTit">Nova versão disponível</strong><small id="atualSub"></small></div>
+      <div class="bts" id="atualBts">
+        <button type="button" class="leve" id="atualDepois">Agora não</button>
+        <button type="button" class="prim" id="atualSim">Atualizar agora</button>
+      </div>
+    </div>
+    <div class="trilho" id="atualTrilho" hidden><div id="atualBarra"></div></div>
+    <details id="atualNotas" hidden><summary>O que mudou</summary><pre id="atualNotasTxt"></pre></details>
+  </div>
+
+  <div class="redes" id="redes" aria-label="Redes aceitas">
+    <span class="rot">Funciona com</span>
+    <span class="rd" data-rede="youtube"><svg class="logo" aria-hidden="true"><use href="#lg-youtube"/></svg>YouTube</span>
+    <span class="rd" data-rede="instagram"><svg class="logo" aria-hidden="true"><use href="#lg-instagram"/></svg>Instagram</span>
+    <span class="rd" data-rede="tiktok"><svg class="logo" aria-hidden="true"><use href="#lg-tiktok"/></svg>TikTok</span>
+    <span class="rd" data-rede="facebook"><svg class="logo" aria-hidden="true"><use href="#lg-facebook"/></svg>Facebook</span>
+  </div>
+
+  <form class="caixa" id="form" autocomplete="off" role="search">
+    <span class="selo" id="selo" aria-live="polite"><svg class="logo" aria-hidden="true"><use href="#lg-link"/></svg><span>Link</span></span>
+    <label class="sr" for="link">Link do vídeo</label>
+    <input id="link" placeholder="Cole aqui o link do vídeo" spellcheck="false">
+    <button type="button" id="colar">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/></svg>Colar
+    </button>
+    <button type="submit" class="prim" id="buscar">Buscar</button>
+  </form>
+
+  <div class="aviso" id="aviso" role="alert">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/></svg>
+    <span id="avisoTxt"></span>
+  </div>
+
+  <section class="palco" id="palco">
+    <!-- vazio -->
+    <div class="convite" id="convite">
+      <div class="grande" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><use href="#lg-link"/></svg></div>
+      <div>
+        <h2>Como pegar o link</h2>
+        <ol>
+          <li>Abra o vídeo no app ou no site da rede.</li>
+          <li>Toque em <b>Compartilhar</b> e depois em <b>Copiar link</b>.</li>
+          <li>Volte aqui e aperte <kbd>Ctrl</kbd> + <kbd>V</kbd> ou o botão Colar.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- carregando -->
+    <div class="cartao esq" id="carregando" hidden aria-busy="true">
+      <div class="moldura bloco" id="esqCapa"></div>
+      <div>
+        <div class="lendo"><div class="giro"></div><span>Lendo o vídeo…</span></div>
+        <div class="bloco l" style="width:85%"></div>
+        <div class="bloco l" style="width:45%"></div>
+        <div class="bloco op-f"></div>
+        <div class="bloco op-f" style="opacity:.7"></div>
+        <div class="bloco op-f" style="opacity:.45"></div>
+      </div>
+    </div>
+
+    <!-- resultado -->
+    <article class="cartao" id="resultado" hidden>
+      <div class="moldura" id="capa">
+        <div class="sem" id="semCapa"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg></div>
+        <img id="capaImg" alt="" hidden>
+        <span class="dur" id="dur"></span>
+      </div>
+      <div class="info">
+        <h2 id="titulo"></h2>
+        <div class="meta" id="meta"></div>
+        <div class="opcoes" id="opcoes"></div>
+      </div>
+    </article>
+  </section>
+
+  <div class="secao">
+    <h2>Downloads</h2>
+    <button class="leve" id="limpar">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Limpar concluídos
+    </button>
+  </div>
+  <div class="lista-vazia" id="listaVazia">Nada baixado ainda. Os vídeos que você baixar aparecem aqui.</div>
+  <div class="lista" id="lista" aria-live="polite"></div>
+</main>
+
+<footer class="rodape">
+  <div class="dentro">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    <div class="caminho"><span>Salvando em</span><code id="pasta" dir="ltr">…</code></div>
+    <button id="trocar">Trocar pasta</button>
+    <button id="abrirPasta">Abrir pasta</button>
+  </div>
+</footer>
+
+<script>
+// Fala com o Python: na janela pelo pywebview, na bancada (--web) por fetch.
+const api = new Proxy({}, { get: (_, nome) => async (...args) => {
+  if (window.pywebview && window.pywebview.api) return window.pywebview.api[nome](...args);
+  const r = await fetch('/api/' + nome, { method: 'POST', body: JSON.stringify(args) });
+  return r.json();
+}});
+
+const $ = id => document.getElementById(id);
+const REDES = [
+  ['youtube', 'YouTube', /(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/],
+  ['instagram', 'Instagram', /(^|\.)(instagram\.com|instagr\.am)$/],
+  ['tiktok', 'TikTok', /(^|\.)(tiktok\.com|douyin\.com)$/],
+  ['facebook', 'Facebook', /(^|\.)(facebook\.com|fb\.watch|fb\.com)$/],
+];
+let atual = null, buscaN = 0;
+
+const LOGO = id => `<svg class="logo" aria-hidden="true"><use href="#lg-${id}"/></svg>`;
+const ICONE = {
+  video: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>',
+  audio: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+  ok: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16 9.8"/></svg>',
+  erro: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/></svg>',
+  fila: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  juntar: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5 5 5 0 0 0 5-5V4M12 15v5"/></svg>',
+  baixar: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  pasta: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+};
+
+function rede(url) {
+  const m = /^\s*(?:https?:\/\/)?([^\/?#\s]+)/i.exec(url || '');
+  if (!m) return null;
+  const host = m[1].toLowerCase().split('@').pop().split(':')[0];
+  const r = REDES.find(([, , re]) => re.test(host));
+  return r ? { id: r[0], nome: r[1] } : null;
+}
+
+function mostrarSelo() {
+  const v = $('link').value.trim(), r = rede(v);
+  const estado = r ? r.id : (v ? 'invalido' : '');
+  $('selo').className = 'selo' + (estado ? ' ' + estado : '');
+  $('selo').innerHTML = LOGO(r ? r.id : (v ? 'invalido' : 'link')) + `<span>${r ? r.nome : (v ? 'Link não reconhecido' : 'Link')}</span>`;
+  if (estado) document.body.dataset.rede = estado; else delete document.body.dataset.rede;
+  $('redes').classList.toggle('tem-rede', !!r);
+  document.querySelectorAll('.rd').forEach(el => el.classList.toggle('on', !!r && el.dataset.rede === r.id));
+}
+
+const tam = b => !b ? '—' : b >= 1e9 ? (b / 1e9).toFixed(2).replace('.', ',') + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(b < 1e7 ? 1 : 0).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+const tempo = s => { if (!s && s !== 0) return ''; s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function aviso(t, tipo) {
+  $('avisoTxt').textContent = t || '';
+  $('aviso').className = 'aviso' + (t ? ' vis' : '') + (tipo === 'info' ? ' info' : '');
+}
+
+// mostra só uma coisa no palco: 'convite' | 'carregando' | 'resultado' | null
+function palco(qual) {
+  $('convite').hidden = qual !== 'convite';
+  $('carregando').hidden = qual !== 'carregando';
+  $('resultado').hidden = qual !== 'resultado';
+}
+const emPe = (id, url) => id === 'tiktok' || id === 'instagram' || /\/(shorts|reel|reels)\//.test(url || '');
+
+async function buscar() {
+  const url = $('link').value.trim();
+  if (!url) return;
+  if (!rede(url)) {
+    buscaN++; atual = null; palco('convite'); $('buscar').disabled = false;
+    aviso('Esse link não é de uma rede que o Baixador aceita. Cole o link de um vídeo do YouTube, Instagram, TikTok ou Facebook.', 'info');
+    return;
+  }
+  const n = ++buscaN;
+  aviso('');
+  $('esqCapa').classList.toggle('em-pe', emPe(rede(url).id, url));
+  palco('carregando'); $('buscar').disabled = true;
+  let r;
+  try { r = await api.analisar(url); } catch { r = { ok: false, erro: 'Não consegui ler esse link agora. Confira a internet e tente de novo.' }; }
+  if (n !== buscaN) return;  // chegou outra busca no meio
+  $('buscar').disabled = false;
+  if (!r.ok) { atual = null; palco('convite'); aviso(r.erro); return; }
+  atual = r; desenhar(r);
+}
+
+function desenhar(r) {
+  $('titulo').textContent = r.titulo || 'Vídeo sem título';
+  $('titulo').title = r.titulo || '';
+  const meta = [`<span>${LOGO(r.plataforma.id)}${esc(r.plataforma.nome)}</span>`];
+  if (r.autor) meta.push(`<span class="autor">${esc(r.autor)}</span>`);
+  if (r.itens) meta.push(`<span>${r.itens} itens no post (baixa todos)</span>`);
+  $('meta').innerHTML = meta.join('');
+
+  const capa = $('capa'), img = $('capaImg');
+  capa.classList.toggle('em-pe', emPe(r.plataforma.id, r.url));
+  img.hidden = !r.miniatura; $('semCapa').hidden = !!r.miniatura;
+  if (r.miniatura) {
+    img.onload = () => { if (img.naturalWidth && img.naturalHeight) capa.classList.toggle('em-pe', img.naturalHeight > img.naturalWidth * 1.05); };
+    img.src = r.miniatura;
+  } else img.removeAttribute('src');
+  $('dur').textContent = tempo(r.duracao); $('dur').hidden = !r.duracao;
+
+  const topo = r.opcoes.findIndex(o => o.tipo === 'video');
+  $('opcoes').innerHTML = r.opcoes.map((o, i) => {
+    const t = o.tamanho ? '~' + tam(o.tamanho) : '';
+    const destaque = i === topo;
+    return `
+    <div class="op ${o.tipo}${destaque ? ' top' : ''}">
+      <div class="ico">${o.tipo === 'audio' ? ICONE.audio : ICONE.video}</div>
+      <div class="nome">${esc(o.rotulo)}${destaque ? '<span class="tag">Maior qualidade</span>' : ''}<small>${esc(o.detalhe)}</small></div>
+      <div class="tam">${t}</div>
+      <button class="${destaque ? 'prim' : ''}" data-i="${i}" aria-label="Baixar ${esc(o.rotulo)}">${ICONE.baixar}Baixar</button>
+    </div>`;
+  }).join('');
+  palco('resultado');
+}
+
+$('opcoes').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-i]'); if (!b || !atual) return;
+  const o = atual.opcoes[+b.dataset.i];
+  const antes = b.innerHTML;
+  b.disabled = true; b.classList.add('feito'); b.innerHTML = ICONE.ok + 'Na lista';
+  setTimeout(() => { b.disabled = false; b.classList.remove('feito'); b.innerHTML = antes; }, 2500);
+  await api.baixar(atual.url, o.id, o.rotulo, atual.titulo, atual.cliente, atual.plataforma.nome);
+  atualizar();
+});
+
+// devolve [html da linha de status, html do botão]
+function linhaStatus(d) {
+  if (d.fase === 'erro') return [`<span class="fase">${ICONE.erro}Não deu pra baixar</span><span class="msg">${esc(d.erro || 'Erro desconhecido.')}</span>`, ''];
+  if (d.fase === 'pronto') return [`<span class="fase">${ICONE.ok}Pronto</span>`,
+    `<button data-abrir="${esc((d.arquivos || [])[(d.arquivos || []).length - 1] || '')}">${ICONE.pasta}Mostrar na pasta</button>`];
+  if (d.fase === 'juntando') return [`<span class="fase">${ICONE.juntar}Juntando vídeo e áudio…</span><span class="nums">Quase lá</span>`, ''];
+  if (d.fase === 'baixando') {
+    const que = d.parte === 'audio' ? 'Baixando o áudio' : 'Baixando o vídeo';
+    const item = d.itens > 1 ? ` (${d.item} de ${d.itens})` : '';
+    const nums = [];
+    nums.push(d.total ? `<b>${Math.floor(d.baixado / d.total * 100)}%</b>` : `<b>${tam(d.baixado)}</b>`);
+    if (d.total) nums.push(`<span>${tam(d.baixado)} de ${tam(d.total)}</span>`);
+    if (d.velocidade) nums.push(`<span>${tam(d.velocidade)}/s</span>`);
+    if (d.eta) nums.push(`<span>falta ${tempo(d.eta)}</span>`);
+    return [`<span class="fase">${ICONE.baixar}${que}${item}</span><span class="nums">${nums.join('')}</span>`, ''];
+  }
+  return [`<span class="fase">${ICONE.fila}Na fila</span><span class="nums">Começa já já</span>`, ''];
+}
+
+// lista de downloads: cada item é criado uma vez e só os pedaços que mudam são trocados (sem piscar)
+const nos = new Map();
+const idRede = nome => (REDES.find(r => r[1] === nome) || ['link'])[0];
+function trocar(el, prop, valor) { if (el[prop] !== valor) el[prop] = valor; }
+function trocarHtml(el, html) { if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
+
+function criarItem(d) {
+  const el = document.createElement('div');
+  el.className = 'dl';
+  el.innerHTML = `${LOGO(idRede(d.plataforma))}<div class="t"></div><div class="acao"></div><div class="q"></div>
+    <div class="barra"><div></div></div><div class="st"></div>`;
+  el._t = el.querySelector('.t'); el._q = el.querySelector('.q'); el._acao = el.querySelector('.acao');
+  el._barra = el.querySelector('.barra'); el._fill = el._barra.firstElementChild; el._st = el.querySelector('.st');
+  return el;
+}
+function preencher(el, d) {
+  const [st, botao] = linhaStatus(d);
+  trocar(el, 'className', 'dl ' + d.fase.replace(/\s+/g, '-'));
+  trocar(el._t, 'textContent', d.titulo || 'Vídeo'); trocar(el._t, 'title', d.titulo || '');
+  trocar(el._q, 'textContent', [d.plataforma, d.rotulo].filter(Boolean).join(', '));
+  trocarHtml(el._st, st); trocarHtml(el._acao, botao);
+  const indet = d.fase !== 'baixando' || !d.total;
+  el._barra.classList.toggle('indet', indet);
+  const w = (d.total ? Math.min(100, d.baixado / d.total * 100) : 0).toFixed(1) + '%';
+  if (el._fill.style.width !== w) el._fill.style.width = w;
+}
+
+let ultimo = '';
+async function atualizar() {
+  let lista;
+  try { lista = await api.estado(); } catch { return; }  // ponte/servidor fora por um instante: tenta no próximo ciclo
+  if (!Array.isArray(lista)) return;
+  const chave = JSON.stringify(lista);
+  if (chave === ultimo) return; ultimo = chave;
+  const box = $('lista');
+  $('listaVazia').hidden = lista.length > 0;
+  const vistos = new Set();
+  lista.forEach((d, i) => {
+    let el = nos.get(d.id);
+    if (!el) { el = criarItem(d); nos.set(d.id, el); }
+    preencher(el, d);
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+    vistos.add(d.id);
+  });
+  for (const [id, el] of nos) if (!vistos.has(id)) { el.remove(); nos.delete(id); }
+}
+
+$('lista').addEventListener('click', e => { const b = e.target.closest('[data-abrir]'); if (b) api.abrir(b.dataset.abrir); });
+$('form').addEventListener('submit', e => { e.preventDefault(); buscar(); });
+$('link').addEventListener('input', mostrarSelo);
+// colou um link reconhecido → já busca, sem precisar clicar
+$('link').addEventListener('paste', () => setTimeout(() => { mostrarSelo(); if (rede($('link').value)) buscar(); }, 0));
+$('colar').addEventListener('click', async () => {
+  let t = '';
+  try { t = await navigator.clipboard.readText(); } catch { }
+  if (!t) t = await api.colar();
+  if (!t) { aviso('Não achei nenhum link copiado. Copie o link do vídeo e tente de novo.', 'info'); return; }
+  $('link').value = t.trim(); mostrarSelo(); buscar();
+});
+$('limpar').addEventListener('click', async () => { await api.limpar(); atualizar(); });
+$('abrirPasta').addEventListener('click', () => api.abrir());
+$('trocar').addEventListener('click', async () => {
+  const p = await api.escolher_pasta();
+  if (p) { $('pasta').textContent = p; $('pasta').title = p; }
+  else if (!(await api.inicio()).janela) aviso('Trocar a pasta só funciona no app (na bancada do navegador não abre o seletor).', 'info');
+});
+
+
+// --- atualização: ao abrir, pergunta ao GitHub se tem versão nova ---------------------------------------------------
+async function checarAtualizacao() {
+  let r;
+  try { r = await api.checar_atualizacao(); } catch { return; }
+  if (!r || !r.nova) return;
+  $('atualTit').textContent = `Nova versão ${r.versao} disponível`;
+  $('atualSub').textContent = ` Você está na ${r.atual}.` + (r.tamanho ? ` Download de ${tam(r.tamanho)}.` : '');
+  if (r.notas) { $('atualNotasTxt').textContent = r.notas; $('atualNotas').hidden = false; }
+  $('atual').hidden = false;
+}
+$('atualDepois').addEventListener('click', () => { $('atual').hidden = true; });
+$('atualSim').addEventListener('click', async () => {
+  $('atualBts').hidden = true; $('atualTrilho').hidden = false; $('atual').classList.remove('erro');
+  $('atualSub').textContent = ' Baixando…';
+  if (!(await api.atualizar_agora())) { $('atualSub').textContent = ' Não deu pra começar. Tente abrir o app de novo.'; return; }
+  const t = setInterval(async () => {
+    const p = await api.progresso_atualizacao();
+    if (p.fase === 'baixando') {
+      const pct = p.total ? Math.floor(p.baixado / p.total * 100) : 0;
+      $('atualBarra').style.width = pct + '%';
+      $('atualSub').textContent = ` Baixando… ${pct}% (${tam(p.baixado)}${p.total ? ' de ' + tam(p.total) : ''})`;
+    } else if (p.fase === 'instalando') {
+      $('atualBarra').style.width = '100%'; $('atualSub').textContent = ' Instalando…';
+    } else if (p.fase === 'reiniciando') {
+      $('atualSub').textContent = ' Pronto! O Baixador vai fechar e abrir de novo sozinho.'; clearInterval(t);
+    } else if (p.fase === 'erro') {
+      clearInterval(t); $('atual').classList.add('erro'); $('atualTrilho').hidden = true;
+      $('atualTit').textContent = 'Não deu pra atualizar';
+      $('atualSub').textContent = ' ' + (p.erro || '') + ' Você pode continuar usando esta versão.';
+      $('atualBts').hidden = false; $('atualSim').textContent = 'Tentar de novo';
+    }
+  }, 400);
+});
+
+async function iniciar() {
+  // a ponte do pywebview às vezes já existe mas ainda não responde: tenta de novo até responder
+  let i = null;
+  for (let n = 0; n < 50 && !(i && i.pasta); n++) {
+    try { i = await Promise.race([api.inicio(), new Promise(r => setTimeout(r, 1000))]); } catch { }
+    if (!(i && i.pasta)) await new Promise(r => setTimeout(r, 200));
+  }
+  if (!i) return aviso('Não consegui falar com o app. Feche e abra de novo.');
+  $('pasta').textContent = i.pasta; $('pasta').title = i.pasta;
+  if (!i.ffmpeg) aviso('Falta o ffmpeg: sem ele dá pra baixar só em qualidade baixa e sem MP3.', 'info');
+  if (i.versao) $('versao').textContent = 'v' + i.versao;
+  setInterval(atualizar, 500); atualizar();
+  $('link').focus();
+  checarAtualizacao();
+}
+// na janela, espera a ponte com o Python ficar pronta (o evento pode vir antes ou depois deste script)
+let comecou = false;
+function talvezIniciar() {
+  if (comecou) return;
+  if (location.protocol.startsWith('http') || (window.pywebview && window.pywebview.api && window.pywebview.api.inicio)) {
+    comecou = true; iniciar();
+  }
+}
+window.addEventListener('pywebviewready', talvezIniciar);
+mostrarSelo(); palco('convite');
+talvezIniciar();
+const espera = setInterval(() => { talvezIniciar(); if (comecou) clearInterval(espera); }, 100);
+</script>
+</body>
+</html>
