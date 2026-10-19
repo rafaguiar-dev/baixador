@@ -41,6 +41,13 @@ def pasta_app() -> Path | None:
     return None
 
 
+def _limpar_sobras():
+    """Apaga pastas de atualizações anteriores (o script não consegue apagar a pasta de onde ele mesmo roda)."""
+    import shutil
+    for p in Path(tempfile.gettempdir()).glob("baixador-atualizacao-*"):
+        shutil.rmtree(p, ignore_errors=True)
+
+
 class Atualizador:
     def __init__(self, versao_atual: str):
         self.versao_atual = os.environ.get("BAIXADOR_VERSAO") or versao_atual
@@ -50,6 +57,7 @@ class Atualizador:
 
     # --- 1. checar --------------------------------------------------------------------------------------------------
     def checar(self) -> dict:
+        _limpar_sobras()
         if pasta_app() is None:
             return {"nova": False, "motivo": "codigo-fonte"}
         try:
@@ -125,8 +133,13 @@ class Atualizador:
                 raise RuntimeError("pacote sem Baixador.exe")
 
             script = self._script(origem, pasta_app(), tmp)
-            subprocess.Popen(["cmd", "/c", str(script)], cwd=str(tmp),
-                             creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS)
+            # console escondido (o ping do script precisa de um) e fora do "job" do app, pra não morrer junto com ele
+            base = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            try:
+                subprocess.Popen(["cmd", "/c", str(script)], cwd=str(tmp),
+                                 creationflags=base | subprocess.CREATE_BREAKAWAY_FROM_JOB)
+            except OSError:  # job que não permite sair: vai sem
+                subprocess.Popen(["cmd", "/c", str(script)], cwd=str(tmp), creationflags=base)
             with self.trava:
                 self.estado["fase"] = "reiniciando"
             ao_terminar()
@@ -142,18 +155,18 @@ class Atualizador:
         s.write_text(f"""@echo off
 setlocal
 :espera
-tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul && (timeout /t 1 /nobreak >nul & goto espera)
+tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul && (ping -n 2 127.0.0.1 >nul & goto espera)
 set tentativas=0
 :copia
 robocopy "{origem}" "{destino}" /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NP >nul
 if %ERRORLEVEL% GEQ 8 (
   set /a tentativas+=1
-  if %tentativas% LSS 5 (timeout /t 2 /nobreak >nul & goto copia)
+  if %tentativas% LSS 5 (ping -n 3 127.0.0.1 >nul & goto copia)
 )
 set BAIXADOR_VERSAO=
 set BAIXADOR_PASTA_APP=
 start "" "{destino / 'Baixador.exe'}"
-cd /d "%TEMP%"
-rmdir /s /q "{tmp}"
+rmdir /s /q "{tmp / 'novo'}"
+del /q "{tmp / 'pacote.zip'}"
 """, encoding="mbcs")
         return s
