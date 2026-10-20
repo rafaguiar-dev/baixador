@@ -8,7 +8,7 @@
 <style>
   /* Tema "Mica cobalto": superfície fria e calma no estilo Windows 11 (Fluent/Mica), pra parecer app do sistema e
      passar confiança a quem é leigo. A única ousadia é a cor da rede: quando o link é reconhecido, a caixa de link e a
-     faixa de logos assumem a cor do YouTube/Instagram/TikTok/Facebook. Todo o resto fica quieto.
+     faixa de logos assumem a cor do YouTube/Instagram/TikTok/Facebook/Pinterest. Todo o resto fica quieto.
      Paleta clara: fundo #EEF1F6, superfície #FFFFFF, tinta #161A22, cobalto #2457D6, pronto #17804A, erro #B42A2F.
      Escura: fundo #191B20, superfície #23262D, tinta #EDEFF3, cobalto #85A8FF. Fonte: Segoe UI Variable (do sistema). */
   :root {
@@ -17,7 +17,7 @@
     --tinta: #161A22; --suave: #535B6A; --fraco: #7E8696;
     --acento: #2457D6; --acento-hover: #1D4AC0; --acento-txt: #FFFFFF; --acento-suave: #E5ECFC;
     --ok: #17804A; --ok-suave: #E2F3E9; --erro: #B42A2F; --erro-suave: #FCE8E9; --alerta: #7A5200; --alerta-suave: #FFF2D2;
-    --c-youtube: #FF0000; --c-instagram: #D62976; --c-tiktok: #00A9A4; --c-facebook: #0866FF;
+    --c-youtube: #FF0000; --c-instagram: #D62976; --c-tiktok: #00A9A4; --c-facebook: #0866FF; --c-pinterest: #E60023;
     --sombra: 0 1px 2px rgba(22, 26, 34, .06), 0 4px 16px rgba(22, 26, 34, .05);
     --rede: var(--acento);
     --fonte: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
@@ -30,7 +30,7 @@
       --tinta: #EDEFF3; --suave: #A9B0BD; --fraco: #818998;
       --acento: #85A8FF; --acento-hover: #9DB9FF; --acento-txt: #0C1430; --acento-suave: #233154;
       --ok: #5BD08E; --ok-suave: #1B3326; --erro: #FF9090; --erro-suave: #3B2226; --alerta: #F3C565; --alerta-suave: #39301B;
-      --c-youtube: #FF4545; --c-instagram: #F0569A; --c-tiktok: #25F4EE; --c-facebook: #4D8EFF;
+      --c-youtube: #FF4545; --c-instagram: #F0569A; --c-tiktok: #25F4EE; --c-facebook: #4D8EFF; --c-pinterest: #FF4D6A;
       --sombra: 0 1px 2px rgba(0, 0, 0, .25), 0 6px 20px rgba(0, 0, 0, .18);
     }
   }
@@ -38,6 +38,7 @@
   body[data-rede="instagram"] { --rede: var(--c-instagram); }
   body[data-rede="tiktok"] { --rede: var(--c-tiktok); }
   body[data-rede="facebook"] { --rede: var(--c-facebook); }
+  body[data-rede="pinterest"] { --rede: var(--c-pinterest); }
   body[data-rede="invalido"] { --rede: var(--alerta); }
 
   * { box-sizing: border-box; }
@@ -92,7 +93,7 @@
   .selo { flex: none; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600;
           height: 38px; padding: 0 12px 0 9px; border-radius: 9px; background: var(--sup3); color: var(--suave); }
   .selo .logo { width: 20px; height: 20px; }
-  .selo.youtube, .selo.instagram, .selo.tiktok, .selo.facebook { background: color-mix(in srgb, var(--rede) 12%, var(--sup)); color: var(--tinta); }
+  .selo.youtube, .selo.instagram, .selo.tiktok, .selo.facebook, .selo.pinterest { background: color-mix(in srgb, var(--rede) 12%, var(--sup)); color: var(--tinta); }
   .selo.invalido { background: var(--alerta-suave); color: var(--alerta); }
   #link { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--tinta);
           font: 15.5px var(--fonte); padding: 10px 4px; }
@@ -151,6 +152,7 @@
   .op .tag { font-size: 11.5px; font-weight: 600; color: var(--acento); background: var(--sup); border-radius: 999px; padding: 1px 8px;
              border: 1px solid color-mix(in srgb, var(--acento) 35%, transparent); }
   .op.audio { margin-top: 6px; border-style: dashed; }
+  .op.imagem .ico { background: color-mix(in srgb, var(--c-pinterest) 14%, var(--sup)); color: var(--c-pinterest); }
   .op.audio .ico { background: color-mix(in srgb, #8B5CF6 16%, var(--sup)); color: #8B5CF6; }
   @media (prefers-color-scheme: dark) { .op.audio .ico { color: #B79CFF; } }
   .op button.feito { color: var(--ok); border-color: var(--ok); background: var(--ok-suave); }
@@ -277,6 +279,10 @@
     <circle cx="12" cy="12" r="12" fill="#0866FF"/>
     <path clip-path="url(#fb-clip)" fill="#fff" d="M9.101 24.5v-8.789H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246V24.5z"/>
   </symbol>
+  <symbol id="lg-pinterest" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="11.6" fill="#fff"/>
+    <path fill="#E60023" d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/>
+  </symbol>
   <symbol id="lg-link" viewBox="0 0 24 24">
     <path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1M14 10a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 20.07l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </symbol>
@@ -293,7 +299,7 @@
     </div>
     <div>
       <h1>Baixador<span class="versao" id="versao"></span></h1>
-      <p class="sub">Cole o link de um vídeo e escolha a qualidade pra salvar no computador.</p>
+      <p class="sub">Cole o link de um vídeo ou imagem e escolha a qualidade pra salvar no computador.</p>
     </div>
   </header>
 
@@ -315,6 +321,7 @@
     <span class="rd" data-rede="instagram"><svg class="logo" aria-hidden="true"><use href="#lg-instagram"/></svg>Instagram</span>
     <span class="rd" data-rede="tiktok"><svg class="logo" aria-hidden="true"><use href="#lg-tiktok"/></svg>TikTok</span>
     <span class="rd" data-rede="facebook"><svg class="logo" aria-hidden="true"><use href="#lg-facebook"/></svg>Facebook</span>
+    <span class="rd" data-rede="pinterest"><svg class="logo" aria-hidden="true"><use href="#lg-pinterest"/></svg>Pinterest</span>
   </div>
 
   <form class="caixa" id="form" autocomplete="off" role="search">
@@ -407,12 +414,14 @@ const REDES = [
   ['instagram', 'Instagram', /(^|\.)(instagram\.com|instagr\.am)$/],
   ['tiktok', 'TikTok', /(^|\.)(tiktok\.com|douyin\.com)$/],
   ['facebook', 'Facebook', /(^|\.)(facebook\.com|fb\.watch|fb\.com)$/],
+  ['pinterest', 'Pinterest', /(^|\.)(pinterest\.[a-z]{2,3}(\.[a-z]{2})?|pin\.it)$/],
 ];
 let atual = null, buscaN = 0;
 
 const LOGO = id => `<svg class="logo" aria-hidden="true"><use href="#lg-${id}"/></svg>`;
 const ICONE = {
   video: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>',
+  imagem: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>',
   audio: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
   ok: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16 9.8"/></svg>',
   erro: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.4v.1"/></svg>',
@@ -455,14 +464,14 @@ function palco(qual) {
   $('carregando').hidden = qual !== 'carregando';
   $('resultado').hidden = qual !== 'resultado';
 }
-const emPe = (id, url) => id === 'tiktok' || id === 'instagram' || /\/(shorts|reel|reels)\//.test(url || '');
+const emPe = (id, url) => id === 'tiktok' || id === 'instagram' || id === 'pinterest' || /\/(shorts|reel|reels)\//.test(url || '');
 
 async function buscar() {
   const url = $('link').value.trim();
   if (!url) return;
   if (!rede(url)) {
     buscaN++; atual = null; palco('convite'); $('buscar').disabled = false;
-    aviso('Esse link não é de uma rede que o Baixador aceita. Cole o link de um vídeo do YouTube, Instagram, TikTok ou Facebook.', 'info');
+    aviso('Esse link não é de uma rede que o Baixador aceita. Cole o link de um vídeo do YouTube, Instagram, TikTok, Facebook ou Pinterest.', 'info');
     return;
   }
   const n = ++buscaN;
@@ -494,13 +503,13 @@ function desenhar(r) {
   } else img.removeAttribute('src');
   $('dur').textContent = tempo(r.duracao); $('dur').hidden = !r.duracao;
 
-  const topo = r.opcoes.findIndex(o => o.tipo === 'video');
+  const topo = r.opcoes.findIndex(o => o.tipo === 'video' || o.tipo === 'imagem');
   $('opcoes').innerHTML = r.opcoes.map((o, i) => {
     const t = o.tamanho ? '~' + tam(o.tamanho) : '';
     const destaque = i === topo;
     return `
     <div class="op ${o.tipo}${destaque ? ' top' : ''}">
-      <div class="ico">${o.tipo === 'audio' ? ICONE.audio : ICONE.video}</div>
+      <div class="ico">${ICONE[o.tipo] || ICONE.video}</div>
       <div class="nome">${esc(o.rotulo)}${destaque ? '<span class="tag">Maior qualidade</span>' : ''}<small>${esc(o.detalhe)}</small></div>
       <div class="tam">${t}</div>
       <button class="${destaque ? 'prim' : ''}" data-i="${i}" aria-label="Baixar ${esc(o.rotulo)}">${ICONE.baixar}Baixar</button>
@@ -526,7 +535,7 @@ function linhaStatus(d) {
     `<button data-abrir="${esc((d.arquivos || [])[(d.arquivos || []).length - 1] || '')}">${ICONE.pasta}Mostrar na pasta</button>`];
   if (d.fase === 'juntando') return [`<span class="fase">${ICONE.juntar}Juntando vídeo e áudio…</span><span class="nums">Quase lá</span>`, ''];
   if (d.fase === 'baixando') {
-    const que = d.parte === 'audio' ? 'Baixando o áudio' : 'Baixando o vídeo';
+    const que = d.parte === 'audio' ? 'Baixando o áudio' : d.parte === 'imagem' ? 'Baixando a imagem' : 'Baixando o vídeo';
     const item = d.itens > 1 ? ` (${d.item} de ${d.itens})` : '';
     const nums = [];
     nums.push(d.total ? `<b>${Math.floor(d.baixado / d.total * 100)}%</b>` : `<b>${tam(d.baixado)}</b>`);

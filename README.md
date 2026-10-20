@@ -2,7 +2,7 @@
 
 <h1 align="center">Baixador</h1>
 
-<p align="center">Cole o link e baixe o vídeo — <b>YouTube</b>, <b>Instagram</b>, <b>TikTok</b> e <b>Facebook</b>.<br>
+<p align="center">Cole o link e baixe o vídeo — <b>YouTube</b>, <b>Instagram</b>, <b>TikTok</b>, <b>Facebook</b> e <b>Pinterest</b>.<br>
 App de Windows, sem anúncio, tudo rodando no seu computador.</p>
 
 ---
@@ -26,6 +26,7 @@ Os arquivos vão para `Downloads\Baixador` (dá pra trocar no rodapé).
 | Instagram | Reels, vídeos e posts com vários itens (públicos) |
 | TikTok | Vídeos sem marca d'água, ou só o áudio |
 | Facebook | Vídeos e Reels públicos (SD/HD) |
+| Pinterest | Pins de vídeo (até 1080p, ou só o áudio) e pins de imagem (imagem original em JPG) |
 
 Conteúdo **privado** ou que pede login (perfil fechado, stories, grupos) não é baixado.
 
@@ -64,7 +65,7 @@ Precisa de `ffmpeg`/`ffprobe` e de **Node.js** (o YouTube exige um runtime de Ja
 ## Uso responsável
 Baixe só o que você tem direito de baixar: seus próprios vídeos, conteúdo com licença livre ou para uso pessoal
 permitido. Respeite os direitos autorais dos criadores e os termos de uso de cada plataforma. Este projeto não tem
-relação com YouTube, Instagram, TikTok ou Facebook; as marcas aparecem só para indicar compatibilidade.
+relação com YouTube, Instagram, TikTok, Facebook ou Pinterest; as marcas aparecem só para indicar compatibilidade.
 
 ## Licença
 Código sob [MIT](LICENSE). O pacote do Windows inclui programas de terceiros, cada um com a sua licença:

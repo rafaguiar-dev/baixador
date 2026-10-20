@@ -1,5 +1,5 @@
 """
-Motor do Baixador: identifica a plataforma do link, lista as opções de download (resoluções + áudio) e baixa.
+Motor do Baixador: identifica a plataforma do link (YouTube, Instagram, TikTok, Facebook, Pinterest), lista as opções de download (resoluções + áudio) e baixa.
 
 Tudo roda local com yt-dlp (+ ffmpeg pra juntar vídeo e áudio / converter MP3). Nada passa por servidor de terceiro,
 diferente dos sites (y2meta, snaptik...), que fazem a mesma extração no servidor deles e enchem a página de anúncio.
@@ -26,6 +26,7 @@ PLATAFORMAS = [
     ("instagram", "Instagram", r"(^|\.)(instagram\.com|instagr\.am)$"),
     ("tiktok", "TikTok", r"(^|\.)(tiktok\.com|douyin\.com)$"),
     ("facebook", "Facebook", r"(^|\.)(facebook\.com|fb\.watch|fb\.com)$"),
+    ("pinterest", "Pinterest", r"(^|\.)(pinterest\.[a-z]{2,3}(\.[a-z]{2})?|pin\.it)$"),
 ]
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -113,7 +114,8 @@ def _extrair(url: str, extra: dict, cliente: str | None = None, baixar: bool = F
         try:
             with yt_dlp.YoutubeDL(op) as ydl:
                 info = ydl.extract_info(url, download=baixar)
-            if info and (info.get("formats") or info.get("entries") or baixar):
+            if info and (info.get("formats") or info.get("entries") or baixar
+                         or (extra.get("ignore_no_formats_error") and info.get("thumbnails"))):
                 return info, c
         except yt_dlp.utils.DownloadError as e:
             erro = e
@@ -135,7 +137,7 @@ def _traduz_erro(e: Exception) -> str:
     if "ip address is blocked" in tl or "not available in your country" in tl or "geo" in tl:
         return "A plataforma bloqueou esse vídeo pra sua região/conexão."
     if "unsupported url" in tl:
-        return "Não reconheci esse link. Cole o link de um vídeo do YouTube, Instagram, TikTok ou Facebook."
+        return "Não reconheci esse link. Cole o link de um vídeo do YouTube, Instagram, TikTok, Facebook ou Pinterest."
     if "unavailable" in tl or "removed" in tl or "not found" in tl or "404" in tl:
         return "Esse vídeo não está disponível (foi apagado, é privado ou bloqueado na sua região)."
     if "rate" in tl and "limit" in tl or "429" in tl:
@@ -234,10 +236,14 @@ def analisar(url: str) -> dict:
     url = (url or "").strip()
     plat = plataforma(url)
     if not plat:
-        raise ErroAmigavel("Não reconheci esse link. Cole o link de um vídeo do YouTube, Instagram, TikTok ou Facebook.")
+        raise ErroAmigavel("Não reconheci esse link. Cole o link de um vídeo do YouTube, Instagram, TikTok, Facebook ou Pinterest.")
     if not re.match(r"^https?://", url, re.I):
         url = "https://" + url
-    info, cliente = _extrair(url, {"skip_download": True})
+    if plat["id"] == "pinterest":
+        url = _expandir_pinit(url)
+    info, cliente = _extrair(url, {"skip_download": True, "ignore_no_formats_error": plat["id"] == "pinterest"})
+    if plat["id"] == "pinterest" and not info.get("formats") and not info.get("entries"):
+        return _resultado_imagem(url, plat, info)
 
     itens = None
     if info.get("_type") == "playlist" or info.get("entries"):
@@ -274,6 +280,71 @@ def analisar(url: str) -> dict:
     }
 
 
+def _expandir_pinit(url: str) -> str:
+    """pin.it/xxxx (botão Compartilhar do app) → pinterest.com/pin/<id>/"""
+    if not re.match(r"^https?://(www\.)?pin\.it/", url, re.I):
+        return url
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA}, method="GET")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            final = r.geturl()
+        m = re.search(r"/pin/(?:[\w-]+--)?(\d+)", final)
+        return f"https://www.pinterest.com/pin/{m.group(1)}/" if m else final
+    except Exception:  # noqa: BLE001
+        return url
+
+
+def _maior_imagem(info: dict) -> dict | None:
+    thumbs = [t for t in info.get("thumbnails") or [] if t.get("url")]
+    if not thumbs:
+        return None
+    # a "original" costuma vir em /originals/; senão, a de maior área
+    return max(thumbs, key=lambda t: ("/originals/" in t["url"], (t.get("width") or 0) * (t.get("height") or 0)))
+
+
+def _resultado_imagem(url: str, plat: dict, info: dict) -> dict:
+    img = _maior_imagem(info)
+    if not img:
+        raise ErroAmigavel("Não achei vídeo nem imagem nesse pin.")
+    dim = f" · {img['width']}×{img['height']}" if img.get("width") and img.get("height") else ""
+    ext = (re.search(r"\.(jpe?g|png|gif|webp)(?:$|\?)", img["url"], re.I) or [None, "jpg"])[1].upper().replace("JPEG", "JPG")
+    titulo = info.get("title") or ""
+    if re.fullmatch(r"Pinterest video #\d+", titulo):
+        desc = (info.get("description") or "").strip()
+        titulo = desc[:80] if desc and "pinterest" not in desc.lower() else "Imagem do Pinterest"
+    return {
+        "url": url, "cliente": None, "plataforma": plat, "titulo": titulo,
+        "autor": info.get("uploader"), "duracao": None, "miniatura": _miniatura(img["url"]), "itens": None,
+        "opcoes": [{"id": "img", "tipo": "imagem", "rotulo": "Imagem original", "detalhe": ext + dim,
+                    "tamanho": None}],
+        "ffmpeg": bool(ffmpeg()), "imagem": True,
+    }
+
+
+def _baixar_imagem(url: str, pasta: str, progresso) -> list[str]:
+    info, _ = _extrair(url, {"skip_download": True, "ignore_no_formats_error": True})
+    img = _maior_imagem(info)
+    if not img:
+        raise ErroAmigavel("Não achei a imagem desse pin.")
+    ext = (re.search(r"\.(jpe?g|png|gif|webp)(?:$|\?)", img["url"], re.I) or [None, "jpg"])[1].lower()
+    destino = Path(pasta) / f"Pinterest {re.sub(r'[^0-9A-Za-z_-]', '', str(info.get('id') or 'imagem'))}.{ext}"
+    req = urllib.request.Request(img["url"], headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=30) as r, open(destino, "wb") as f:
+        total = int(r.headers.get("Content-Length") or 0) or None
+        baixado = 0
+        while True:
+            bloco = r.read(1 << 16)
+            if not bloco:
+                break
+            f.write(bloco)
+            baixado += len(bloco)
+            if progresso:
+                progresso({"fase": "baixando", "baixado": baixado, "total": total, "parte": "imagem"})
+    if progresso:
+        progresso({"fase": "pronto", "arquivos": [str(destino)]})
+    return [str(destino)]
+
+
 def _seletor(opcao_id: str) -> tuple[str, dict]:
     if opcao_id == "mp3":
         return "ba/b", {
@@ -306,6 +377,8 @@ def baixar(url: str, opcao_id: str, pasta: str, progresso: Callable[[dict], None
            cliente: str | None = None) -> list[str]:
     """Baixa e devolve os caminhos dos arquivos prontos."""
     Path(pasta).mkdir(parents=True, exist_ok=True)
+    if opcao_id == "img":
+        return _baixar_imagem(url, pasta, progresso)
     seletor, extra = _seletor(opcao_id)
     prontos: list[str] = []
 
