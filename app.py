@@ -23,7 +23,7 @@ import motor
 from atualizador import Atualizador
 
 TITULO = "Baixador"
-VERSAO = "1.1.0"
+VERSAO = "1.1.1"
 AQUI = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent)
 DADOS = Path(os.environ.get("BAIXADOR_DADOS") or Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Baixador")
 CONFIG = DADOS / "config.json"
@@ -225,7 +225,11 @@ def main():
     import webview
     api._janela = webview.create_window(TITULO, url=str(AQUI / "ui" / "index.html"), js_api=api,
                                        width=980, height=760, min_size=(720, 560), background_color="#EEF1F6" if _tema_claro() else "#0f1115")
-    webview.start(private_mode=False, storage_path=str(DADOS / "webview"))
+    # Modo privado: porta nova a cada abertura e sem cache em disco. Antes (1.0/1.1) a tela ficava numa porta fixa com
+    # cache, e depois de atualizar o WebView2 continuava mostrando a página da versão anterior por horas.
+    import shutil
+    shutil.rmtree(DADOS / "webview", ignore_errors=True)
+    webview.start(private_mode=True)
 
 
 if __name__ == "__main__":
