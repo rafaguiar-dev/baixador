@@ -232,6 +232,30 @@ def _formatos_video(info: dict) -> list[dict]:
     return saida
 
 
+# Só o carrossel do Instagram (vários itens no MESMO post) baixa mais de um arquivo; o resto é sempre um item só.
+VARIOS_ITENS = {"instagram"}
+
+
+def _so_o_video(url: str, plat: dict) -> str:
+    """Tira do link tudo que puxa uma lista (playlist/mix do YouTube) e deixa só o vídeo escolhido."""
+    if plat["id"] != "youtube":
+        return url
+    from urllib.parse import parse_qs, urlparse
+    u = urlparse(url)
+    q = parse_qs(u.query)
+    vid = (q.get("v") or [None])[0]
+    if not vid and u.netloc.lower().endswith("youtu.be"):
+        vid = u.path.strip("/").split("/")[0]
+    if not vid:
+        m = re.match(r"^/(?:shorts|live|embed|v)/([\w-]{6,})", u.path)
+        vid = m.group(1) if m else None
+    if vid and re.fullmatch(r"[\w-]{6,}", vid):
+        return f"https://www.youtube.com/watch?v={vid}"
+    if "list" in q or u.path.startswith("/playlist"):
+        raise ErroAmigavel("Esse link é de uma playlist, não de um vídeo. Abra o vídeo que você quer e copie o link dele.")
+    return url
+
+
 def analisar(url: str) -> dict:
     url = (url or "").strip()
     plat = plataforma(url)
@@ -241,13 +265,18 @@ def analisar(url: str) -> dict:
         url = "https://" + url
     if plat["id"] == "pinterest":
         url = _expandir_pinit(url)
+    url = _so_o_video(url, plat)
     info, cliente = _extrair(url, {"skip_download": True, "ignore_no_formats_error": plat["id"] == "pinterest"})
     if plat["id"] == "pinterest" and not info.get("formats") and not info.get("entries"):
         return _resultado_imagem(url, plat, info)
 
     itens = None
     if info.get("_type") == "playlist" or info.get("entries"):
-        # carrossel do Instagram, slideshow do TikTok...
+        if plat["id"] not in VARIOS_ITENS:
+            # link de playlist, perfil, quadro do Pinterest, canal... — não tem "o vídeo" pra baixar
+            raise ErroAmigavel("Esse link é de uma lista ou perfil, não de um vídeo. Abra o vídeo que você quer e "
+                               "copie o link dele.")
+        # carrossel do Instagram (um post com vários itens)
         entradas = [e for e in (info.get("entries") or []) if e]
         itens = len(entradas)
         primeiro = entradas[0] if entradas else {}
@@ -377,6 +406,8 @@ def baixar(url: str, opcao_id: str, pasta: str, progresso: Callable[[dict], None
            cliente: str | None = None) -> list[str]:
     """Baixa e devolve os caminhos dos arquivos prontos."""
     Path(pasta).mkdir(parents=True, exist_ok=True)
+    plat = plataforma(url) or {"id": ""}
+    url = _so_o_video(url, plat) if plat["id"] else url
     if opcao_id == "img":
         return _baixar_imagem(url, pasta, progresso)
     seletor, extra = _seletor(opcao_id)
@@ -405,12 +436,14 @@ def baixar(url: str, opcao_id: str, pasta: str, progresso: Callable[[dict], None
         "format": seletor,
         "outtmpl": {"default": os.path.join(pasta, "%(title).80B [%(id)s].%(ext)s")},
         "windowsfilenames": True,
-        "noplaylist": False,          # carrossel: baixa todos os itens
+        "noplaylist": True,           # link de vídeo dentro de playlist → só o vídeo
         "progress_hooks": [gancho],
         "postprocessor_hooks": [gancho_pos],
         "concurrent_fragment_downloads": 4,
         **extra,
     }
+    if plat["id"] not in VARIOS_ITENS:
+        extra["playlist_items"] = "1"  # trava extra: se ainda assim vier uma lista, baixa só o primeiro item
     if not ffmpeg() and opcao_id != "vmelhor":
         raise ErroAmigavel("Falta o ffmpeg (ele junta vídeo e áudio). Coloque o ffmpeg.exe na pasta do app.")
     _extrair(url, extra, cliente, baixar=True)

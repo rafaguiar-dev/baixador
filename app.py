@@ -23,7 +23,7 @@ import motor
 from atualizador import Atualizador
 
 TITULO = "Baixador"
-VERSAO = "1.1.1"
+VERSAO = "1.1.2"
 AQUI = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent)
 DADOS = Path(os.environ.get("BAIXADOR_DADOS") or Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Baixador")
 CONFIG = DADOS / "config.json"
